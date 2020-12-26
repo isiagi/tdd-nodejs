@@ -1,0 +1,19 @@
+const User = require("./User");
+const bcrypt = require("bcrypt");
+
+const save = async (body) => {
+  const hash = await bcrypt.hash(body.password, 10);
+  const user = { ...body, password: hash };
+  await User.create(user);
+};
+
+module.exports = {
+  save,
+};
+
+//   bcrypt.hash(req.body.password, 10).then((hash) => {
+//     const user = { ...req.body, password: hash };
+//     User.create(user).then(() => {
+//       return res.send({ message: "user created" });
+//     });
+//   });
