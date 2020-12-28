@@ -113,6 +113,16 @@ describe("User Registration", () => {
     const body = response.body;
     expect(Object.keys(body.validationErrors)).toEqual(["username", "email"]);
   });
+
+  it("returns password is null when a null value is sent", async () => {
+    const response = await validUser({
+      username: "user1",
+      email: "user1@mail.com",
+      password: null,
+    });
+    const body = response.body;
+    expect(body.validationErrors.password).toBe("password can not be null");
+  });
 });
 
 // validUser().then(() => {
