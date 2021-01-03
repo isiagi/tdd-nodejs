@@ -75,16 +75,6 @@ describe("User Registration", () => {
     expect(body.validationErrors).not.toBeUndefined();
   });
 
-  it("returns username is null username is null", async () => {
-    const response = await validUser({
-      username: null,
-      email: "isiagi@gmail.com",
-      password: "pa$$w0rd",
-    });
-    const body = response.body;
-    expect(body.validationErrors.username).toBe("username should not be null");
-  });
-
   it("returns 400 when email is null", async () => {
     const response = await validUser({
       username: "isiagi",
@@ -92,16 +82,6 @@ describe("User Registration", () => {
       password: "pa$$w0rd",
     });
     expect(response.status).toBe(400);
-  });
-
-  it("returns E-mail is null when Emal is null", async () => {
-    const response = await validUser({
-      username: "isiagi",
-      email: null,
-      password: "pa$$w0rd",
-    });
-    const body = response.body;
-    expect(body.validationErrors.email).toBe("email cannot be null");
   });
 
   it("returns E-mail and Username are null when a null value is sent", async () => {
@@ -114,16 +94,84 @@ describe("User Registration", () => {
     expect(Object.keys(body.validationErrors)).toEqual(["username", "email"]);
   });
 
-  it("returns password is null when a null value is sent", async () => {
-    const response = await validUser({
-      username: "user1",
-      email: "user1@mail.com",
-      password: null,
-    });
+  it.each`
+    field         | expectedMessage
+    ${"email"}    | ${"email cannot be null"}
+    ${"username"} | ${"username should not be null"}
+    ${"password"} | ${"password can not be null"}
+  `(
+    "returns $expectedMessage when $field is null",
+    async ({ field, expectedMessage }) => {
+      const user = {
+        username: "isiagi",
+        email: "isiagi@gmail.com",
+        password: "pa$$w0rd",
+      };
+      user[field] = null;
+      const response = await validUser(user);
+      const body = response.body;
+      expect(body.validationErrors[field]).toBe(expectedMessage);
+    }
+  );
+
+  it("returns size validation error when less than 4 characters", async () => {
+    const user = {
+      username: "isi",
+      email: "isiagi@gmail.com",
+      password: "pa$$w0rd",
+    };
+    const response = await validUser(user);
     const body = response.body;
-    expect(body.validationErrors.password).toBe("password can not be null");
+    expect(body.validationErrors.username).toBe(
+      "Must have a min : 4, max: 32 characters"
+    );
   });
 });
+
+// it.each([
+//   ["email", "email cannot be null"],
+//   ["username", "username should not be null"],
+//   ["password", "password can not be null"],
+// ])("when %s is null %s is recievied", async (field, expectedMessage) => {
+//   const user = {
+//     username: "isiagi",
+//     email: "isiagi@gmail.com",
+//     password: "pa$$w0rd",
+//   };
+//   user[field] = null;
+//   const response = await validUser(user);
+//   const body = response.body;
+//   expect(body.validationErrors[field]).toBe(expectedMessage);
+// });
+//   it("returns E-mail is null when Emal is null", async () => {
+//     const response = await validUser({
+//       username: "isiagi",
+//       email: null,
+//       password: "pa$$w0rd",
+//     });
+//     const body = response.body;
+//     expect(body.validationErrors.email).toBe("email cannot be null");
+//   });
+
+//   it("returns username is null username is null", async () => {
+//     const response = await validUser({
+//       username: null,
+//       email: "isiagi@gmail.com",
+//       password: "pa$$w0rd",
+//     });
+//     const body = response.body;
+//     expect(body.validationErrors.username).toBe("username should not be null");
+//   });
+
+//   it("returns password is null when a null value is sent", async () => {
+//     const response = await validUser({
+//       username: "user1",
+//       email: "user1@mail.com",
+//       password: null,
+//     });
+//     const body = response.body;
+//     expect(body.validationErrors.password).toBe("password can not be null");
+//   });
 
 // validUser().then(() => {
 //   User.findAll().then((userList) => {
