@@ -2,6 +2,7 @@ const request = require("supertest");
 const app = require("../src/app");
 const User = require("./../src/user/User");
 const sequelize = require("./../src/config/database");
+const nodeMailerStub = require("nodemailer-stub");
 
 beforeAll(() => {
   return sequelize.sync();
@@ -14,7 +15,7 @@ beforeEach(() => {
 const postUser = {
   username: "isiagi",
   email: "isiagi@gmail.com",
-  password: "pa$$w0rd",
+  password: "pa$$w0rd1",
 };
 
 const validUser = (user = postUser) => {
@@ -53,7 +54,7 @@ describe("User Registration", () => {
   it("hashes the password in database", async () => {
     await validUser();
     const all = await User.findAll();
-    expect(all[0].password).not.toBe("pa$$w0rd");
+    expect(all[0].password).not.toBe("pa$$w0rd1");
   });
 
   it("returns 400 when username is null", async () => {
@@ -69,7 +70,7 @@ describe("User Registration", () => {
     const response = await validUser({
       username: null,
       email: "isiagi@gmail.com",
-      password: "pa$$w0rd",
+      password: "pa$$w0rd1",
     });
     const body = response.body;
     expect(body.validationErrors).not.toBeUndefined();
@@ -79,7 +80,7 @@ describe("User Registration", () => {
     const response = await validUser({
       username: "isiagi",
       email: null,
-      password: "pa$$w0rd",
+      password: "pa$$w0rd1",
     });
     expect(response.status).toBe(400);
   });
@@ -88,45 +89,81 @@ describe("User Registration", () => {
     const response = await validUser({
       username: null,
       email: null,
-      password: "pa$$w0rd",
+      password: "pa$$w0rd1",
     });
     const body = response.body;
     expect(Object.keys(body.validationErrors)).toEqual(["username", "email"]);
   });
 
+  it("set user inactive", async () => {
+    await validUser();
+    const users = await User.findAll();
+    const savedUser = users[0];
+    expect(savedUser.inactive).toBe(true);
+  });
+
+  it("set user inactive to false when user is create", async () => {
+    const newUser = { ...postUser, inactive: false };
+    await validUser(newUser);
+    const users = await User.findAll();
+    const savedUser = users[0];
+    expect(savedUser.inactive).toBe(true);
+  });
+
+  it("creates an activationToken for user", async () => {
+    await validUser();
+    const users = await User.findAll();
+    const savedUser = users[0];
+    expect(savedUser.activationToken).toBeTruthy();
+  });
+
+  it("send account activation mail with accountToken", async () => {
+    await validUser();
+    const lastMail = nodeMailerStub.interactsWithMail.lastMail();
+    expect(lastMail.to[0]).toBe("isiagi@gmail.com");
+    const users = await User.findAll();
+    const savedUser = users[0];
+    expect(lastMail.content).toContain(savedUser.activationToken);
+  });
+
   it.each`
-    field         | expectedMessage
-    ${"email"}    | ${"email cannot be null"}
-    ${"username"} | ${"username should not be null"}
-    ${"password"} | ${"password can not be null"}
+    field         | value                | expectedMessage
+    ${"email"}    | ${null}              | ${"email cannot be null"}
+    ${"email"}    | ${"mail.com"}        | ${"email is not valid"}
+    ${"email"}    | ${"isiagi.mail.com"} | ${"email is not valid"}
+    ${"email"}    | ${"isiagi@mail"}     | ${"email is not valid"}
+    ${"username"} | ${null}              | ${"username should not be null"}
+    ${"username"} | ${"isi"}             | ${"Must have a min : 4, max: 32 characters"}
+    ${"username"} | ${"isi".repeat(33)}  | ${"Must have a min : 4, max: 32 characters"}
+    ${"password"} | ${null}              | ${"password can not be null"}
+    ${"password"} | ${"pa$$w"}           | ${"password must be atleast 6 characters"}
   `(
-    "returns $expectedMessage when $field is null",
-    async ({ field, expectedMessage }) => {
+    "returns $expectedMessage when $field is $value",
+    async ({ field, expectedMessage, value }) => {
       const user = {
         username: "isiagi",
         email: "isiagi@gmail.com",
-        password: "pa$$w0rd",
+        password: "pa$$w0rd1",
       };
-      user[field] = null;
+      user[field] = value;
       const response = await validUser(user);
       const body = response.body;
       expect(body.validationErrors[field]).toBe(expectedMessage);
     }
   );
-
-  it("returns size validation error when less than 4 characters", async () => {
-    const user = {
-      username: "isi",
-      email: "isiagi@gmail.com",
-      password: "pa$$w0rd",
-    };
-    const response = await validUser(user);
-    const body = response.body;
-    expect(body.validationErrors.username).toBe(
-      "Must have a min : 4, max: 32 characters"
-    );
-  });
 });
+// it("returns size validation error when less than 4 characters", async () => {
+//   const user = {
+//     username: "isi",
+//     email: "isiagi@gmail.com",
+//     password: "pa$$w0rd",
+//   };
+//   const response = await validUser(user);
+//   const body = response.body;
+//   expect(body.validationErrors.username).toBe(
+//     "Must have a min : 4, max: 32 characters"
+//   );
+// });
 
 // it.each([
 //   ["email", "email cannot be null"],

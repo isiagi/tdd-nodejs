@@ -29,10 +29,20 @@ router.post(
     .notEmpty()
     .withMessage("username should not be null")
     .bail()
-    .isLength({ min: 4 })
+    .isLength({ min: 4, max: 32 })
     .withMessage("Must have a min : 4, max: 32 characters"),
-  check("email").notEmpty().withMessage("email cannot be null"),
-  check("password").notEmpty().withMessage("password can not be null"),
+  check("email")
+    .notEmpty()
+    .withMessage("email cannot be null")
+    .bail()
+    .isEmail()
+    .withMessage("email is not valid"),
+  check("password")
+    .notEmpty()
+    .withMessage("password can not be null")
+    .bail()
+    .isLength({ min: 6 })
+    .withMessage("password must be atleast 6 characters"),
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
