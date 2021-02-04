@@ -3,6 +3,7 @@ const app = require("../src/app");
 const User = require("./../src/user/User");
 const sequelize = require("./../src/config/database");
 const nodeMailerStub = require("nodemailer-stub");
+const EmailService = require("../src/email/emailService");
 
 beforeAll(() => {
   return sequelize.sync();
@@ -151,6 +152,31 @@ describe("User Registration", () => {
       expect(body.validationErrors[field]).toBe(expectedMessage);
     }
   );
+  it("returns 502 Gateway when sendind emails fails", async () => {
+    const mockSendAccountActivition = jest
+      .spyOn(EmailService, "sendAccountActivation")
+      .mockRejectedValue({ message: "Failed to deliever Email" });
+    const response = await validUser();
+    expect(response.status).toBe(502);
+    mockSendAccountActivition.mockRestore();
+  });
+  it("returns email failure message", async () => {
+    const mockSendAccountActivition = jest
+      .spyOn(EmailService, "sendAccountActivation")
+      .mockRejectedValue({ message: "Failed to deliever Email" });
+    const response = await validUser();
+    expect(response.body.message).toBe("E-mail Failure");
+    mockSendAccountActivition.mockRestore();
+  });
+  it("does not save user when sending email fails", async () => {
+    const mockSendAccountActivition = jest
+      .spyOn(EmailService, "sendAccountActivation")
+      .mockRejectedValue({ message: "Failed to deliever Email" });
+    await validUser();
+    const user = await User.findAll();
+    mockSendAccountActivition.mockRestore();
+    expect(user.length).toBe(0);
+  });
 });
 // it("returns size validation error when less than 4 characters", async () => {
 //   const user = {

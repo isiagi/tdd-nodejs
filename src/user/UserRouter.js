@@ -53,8 +53,12 @@ router.post(
       // const response = { validationErrors: { ...req.validationErrors } };
       return res.status(400).send({ validationErrors });
     }
-    await save(req.body);
-    return res.send({ message: "user created" });
+    try {
+      await save(req.body);
+      return res.send({ message: "user created" });
+    } catch (error) {
+      res.status(502).send({ message: "E-mail Failure" });
+    }
   }
 );
 
