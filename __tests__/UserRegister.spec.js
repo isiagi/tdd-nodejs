@@ -2,14 +2,38 @@ const request = require("supertest");
 const app = require("../src/app");
 const User = require("./../src/user/User");
 const sequelize = require("./../src/config/database");
-const nodeMailerStub = require("nodemailer-stub");
-const EmailService = require("../src/email/emailService");
+const SMTPSERVER = require("smtp-server").SMTPServer;
 
-beforeAll(() => {
-  return sequelize.sync();
+let lastMail, server;
+let simulateSmtpFailure = false;
+
+beforeAll(async () => {
+  server = new SMTPSERVER({
+    authOptional: true,
+    onData(stream, session, callback) {
+      let mailbody;
+      stream.on("data", (data) => {
+        mailbody += data.toString();
+      });
+      stream.on("end", () => {
+        if (simulateSmtpFailure) {
+          const err = new Error("Invalid mailbox");
+          err.responseCode = 503;
+          return callback(err);
+        }
+        lastMail = mailbody;
+        callback();
+      });
+    },
+  });
+
+  await server.listen(8586, "localhost");
+
+  await sequelize.sync();
 });
 
 beforeEach(() => {
+  simulateSmtpFailure = false;
   return User.destroy({ truncate: true });
 });
 
@@ -18,6 +42,10 @@ const postUser = {
   email: "isiagi@gmail.com",
   password: "pa$$w0rd1",
 };
+
+afterAll(async () => {
+  await server.close();
+});
 
 const validUser = (user = postUser) => {
   return request(app).post("/api/v1/users").send(user);
@@ -120,11 +148,11 @@ describe("User Registration", () => {
 
   it("send account activation mail with accountToken", async () => {
     await validUser();
-    const lastMail = nodeMailerStub.interactsWithMail.lastMail();
-    expect(lastMail.to[0]).toBe("isiagi@gmail.com");
+
     const users = await User.findAll();
     const savedUser = users[0];
-    expect(lastMail.content).toContain(savedUser.activationToken);
+    expect(lastMail).toContain("isiagi@gmail.com");
+    expect(lastMail).toContain(savedUser.activationToken);
   });
 
   it.each`
@@ -153,31 +181,23 @@ describe("User Registration", () => {
     }
   );
   it("returns 502 Gateway when sendind emails fails", async () => {
-    const mockSendAccountActivition = jest
-      .spyOn(EmailService, "sendAccountActivation")
-      .mockRejectedValue({ message: "Failed to deliever Email" });
+    simulateSmtpFailure = true;
     const response = await validUser();
     expect(response.status).toBe(502);
-    mockSendAccountActivition.mockRestore();
   });
   it("returns email failure message", async () => {
-    const mockSendAccountActivition = jest
-      .spyOn(EmailService, "sendAccountActivation")
-      .mockRejectedValue({ message: "Failed to deliever Email" });
+    simulateSmtpFailure = true;
     const response = await validUser();
     expect(response.body.message).toBe("E-mail Failure");
-    mockSendAccountActivition.mockRestore();
   });
   it("does not save user when sending email fails", async () => {
-    const mockSendAccountActivition = jest
-      .spyOn(EmailService, "sendAccountActivation")
-      .mockRejectedValue({ message: "Failed to deliever Email" });
+    simulateSmtpFailure = true;
     await validUser();
     const user = await User.findAll();
-    mockSendAccountActivition.mockRestore();
     expect(user.length).toBe(0);
   });
 });
+
 // it("returns size validation error when less than 4 characters", async () => {
 //   const user = {
 //     username: "isi",
