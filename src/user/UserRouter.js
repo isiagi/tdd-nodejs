@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { save } = require("./UserService");
+const { save, activate, getUsers } = require("./UserService");
 const { check, validationResult } = require("express-validator");
 
 // const validateUserName = (req, res, next) => {
@@ -61,5 +61,27 @@ router.post(
     }
   }
 );
+router.post("/api/v1/users/token/:token", async (req, res, next) => {
+  const token = req.params.token;
+  try {
+    await activate(token);
+    return res.send({ message: "Activation Success" });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get("/api/v1/users", async (req, res) => {
+  let page = req.query.page ? Number.parseInt(req.query.page) : 0;
+  if (page < 0) {
+    page = 0;
+  }
+  let size = req.query.size ? Number.parseInt(req.query.size) : 10;
+  if (size > 10 || size <= 1) {
+    size = 10;
+  }
+  const users = await getUsers(page, size);
+  res.send(users);
+});
 
 module.exports = router;

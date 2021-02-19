@@ -29,8 +29,32 @@ const save = async (body) => {
   }
 };
 
+const activate = async (body) => {
+  const user = await User.findOne({ where: { activationToken: body } });
+  user.inactive = false;
+  await user.save();
+};
+
+const getUsers = async (page, size) => {
+  const users = await User.findAll({
+    where: { inactive: false },
+    attributes: ["id", "username", "email"],
+    limit: size,
+    offset: page * size,
+  });
+  const count = await User.count({ where: { inactive: false } });
+  return {
+    content: users,
+    size,
+    page,
+    totalPages: Math.ceil(count / size),
+  };
+};
+
 module.exports = {
   save,
+  activate,
+  getUsers,
 };
 
 //   bcrypt.hash(req.body.password, 10).then((hash) => {

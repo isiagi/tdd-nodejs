@@ -197,6 +197,19 @@ describe("User Registration", () => {
     expect(user.length).toBe(0);
   });
 });
+describe("account activation", () => {
+  it("activates account when correct token is sent", async () => {
+    await validUser();
+    let user = await User.findAll();
+    const token = user[0].activationToken;
+
+    await request(app)
+      .post("/api/v1/users/token/" + token)
+      .send();
+    user = await User.findAll();
+    expect(user[0].inactive).toBe(false);
+  });
+});
 
 // it("returns size validation error when less than 4 characters", async () => {
 //   const user = {
