@@ -1,10 +1,12 @@
 const express = require("express");
 const UserRouter = require("./user/UserRouter");
+const authenicationRouter = require("./auth/authenicationRouter");
 const app = express();
 
 app.use(express.json());
 
 app.use(UserRouter);
+app.use(authenicationRouter);
 
 app.use((err, req, res, next) => {
   const { message, status } = err;

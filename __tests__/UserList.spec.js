@@ -103,3 +103,47 @@ describe("User listing", () => {
     expect(response.body.page).toBe(0);
   });
 });
+describe("Get User", () => {
+  const getUser = (id = 5) => {
+    return request(app).get("/api/v1/users/" + id);
+  };
+  it("Return 400 when user not found", async () => {
+    const response = await getUser();
+    expect(response.status).toBe(404);
+  });
+  // it("Returns proper error message when user not found", async () => {
+  //   const nowInMillis = new Date().getTime();
+  //   const response = await getUser();
+  //   const error = response.body;
+  //   expect(error.path).toBe("/api/v1/users/5");
+  //   expect(error.timestamp).toBeGreaterThan(nowInMillis);
+  //   expect(Object.keys(error)).toEqual(["path", "timestamp", "message"]);
+  // });
+  it("Returns 200 when active user exists", async () => {
+    const user = await User.create({
+      username: "user1",
+      email: "user1@mail.com",
+      inactive: false,
+    });
+    const response = await getUser(user.id);
+    expect(response.status).toBe(200);
+  });
+  it("Returns id, username and email in response body when active user exists", async () => {
+    const user = await User.create({
+      username: "user1",
+      email: "user1@mail.com",
+      inactive: false,
+    });
+    const response = await getUser(user.id);
+    expect(Object.keys(response.body)).toEqual(["id", "username", "email"]);
+  });
+  it("Returns 404 when inactive user exists", async () => {
+    const user = await User.create({
+      username: "user1",
+      email: "user1@mail.com",
+      inactive: true,
+    });
+    const response = await getUser(user.id);
+    expect(response.status).toBe(404);
+  });
+});

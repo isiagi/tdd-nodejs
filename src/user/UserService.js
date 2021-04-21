@@ -4,9 +4,14 @@ const crypto = require("crypto");
 const EmailService = require("./../email/emailService");
 const sequelize = require("../config/database");
 const emailException = require("../email/emailException");
+const UserNotFoundException = require("../UserNotFoundException");
 
 const generateToken = (length) => {
   return crypto.randomBytes(length).toString("hex").substring(0, 16);
+};
+
+const findByEmail = async (email) => {
+  return await User.findOne({ where: { email: email } });
 };
 
 const save = async (body) => {
@@ -51,10 +56,23 @@ const getUsers = async (page, size) => {
   };
 };
 
+const getUser = async (id) => {
+  const user = await User.findOne({
+    where: { id: id, inactive: false },
+    attributes: ["id", "username", "email"],
+  });
+  if (!user) {
+    throw new UserNotFoundException();
+  }
+  return user;
+};
+
 module.exports = {
+  findByEmail,
   save,
   activate,
   getUsers,
+  getUser,
 };
 
 //   bcrypt.hash(req.body.password, 10).then((hash) => {
